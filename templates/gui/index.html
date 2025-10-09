@@ -1,0 +1,334 @@
+<!doctype html>
+<html l · ="en">
+  <he · 
+    <met · h · et="utf-8" />
+    <met ·  · ="viewport" content="width=device-width, initi · sc · =1" />
+    <title>Omni  · nt â€” Web UI</title>
+    <style>
+      :root { --bg: #0f172 · --p · l: #111827; --text: #e5e7eb; --muted:#9c · f; -- · ent:#22d3ee; --d · er:#ef4444; }
+      body { m · in:0; b · ground: v · --bg); color: v · --text); font-f · ly: ui-s · -serif, system-ui, - · le-system, Segoe UI, Roboto, Ubuntu, C ·  · ll, Noto S · , s · -serif; }
+      .l · ut { displ · flex; height:100vh; }
+      .sideb · { width: 320px; b · ground: v · --p · l); border-right: 1px solid #1f2937; displ · flex; flex-direction: column; }
+      .br ·  { p · ing: 14px 16px; border-bottom: 1px solid #1f2937; font-weight: 600; }
+      .br ·  sm ·  { color: v · --muted); font-weight: 400; }
+      .section { p · ing: 10px 12px; border-bottom: 1px solid #1f2937; }
+      .section h3 { m · in: 6px 0 8px; font-size: 14px; color: v · --muted); font-weight: 600; }
+      .sessions { overflow-y: · o; flex:1; }
+      .session-item { p · ing: 8px 10px; cursor: pointer; border-r · us: 6px; m · in: 4px 0; }
+      .session-item. · ive { b · ground: #0b1220; border: 1px solid #24324 · }
+      .row { displ · flex; g · 8px;  · gn-items:center; }
+      button { b · ground:#111827; color: v · --text); border:1px solid #374151; border-r · us:8px; p · ing:8px 10px; cursor:pointer; }
+      button:hover { border-color:#4b5563; }
+      .btn- · ent { border-color: v · -- · ent); color: v · -- · ent); }
+      .btn-d · er { border-color: v · --d · er); color: v · --d · er); }
+      .content { flex:1; displ · flex; flex-direction: column; }
+      .toolb · { p · ing: 10px 14px; border-bottom: 1px solid #1f2937; displ · flex; justify-content: sp · -between;  · gn-items: center; }
+      .b · e { p · ing: 2px 8px; border-r · us: 999px; border:1px solid #334155; color: v · --muted); font-size: 12px; }
+      .b · e.ok { color:#10b981; border-color:#064e3b; }
+      .b · e.err { color:#f97316; border-color:#7c2d12; }
+      .ch · { p · ing: 14px; overflow-y: · o; flex:1; }
+      .msg { m · in: 12px 0; }
+      .role { font-size: 12px; color: v · --muted); m · in-bottom: 4px; }
+      .bubble { b · ground:#0b1220; border:1px solid #24324 · border-r · us:10px; p · ing:10px 12px; white-sp · : pre-wr ·  }
+      det · s.tool { border:1px solid #24324 · border-r · us:10px; b · ground:#0b1220; }
+      det · s.tool > summ ·  { cursor:pointer; p · ing:8px 10px; color: v · --muted); }
+      det · s.tool > div { p · ing:8px 10px; }
+      .inputb · { displ · flex; g · 8px; p · ing: 12px; border-top:1px solid #1f2937; }
+      .inputb · input { flex:1; b · ground:#0b1220; border:1px solid #24324 · border-r · us:10px; color: v · --text); p · ing:10px 12px; }
+
+      /* Spinner */
+      .spinner { width:18px; height:18px; border: 3px solid rgb · 29,231,235,0.15); border-top-color: #e5e7eb; border-r · us:50%;  · m · on:spin 1s line · infinite; displ · none; }
+      @keyfr · s spin { to { tr · form: rot · (360deg); } }
+      .spin-wr · { displ · flex;  · gn-items:center; g · 10px; }
+    </style>
+  </he · 
+  <body>
+    <div cl · ="l · ut">
+      < · de cl · ="sideb · >
+        <div cl · ="br · ">Omni  · nt<br/><sm · >{{ model }}</sm · ></div>
+        <div cl · ="section">
+          <h3>Tor</h3>
+          <div cl · ="row">
+            <sp · id="tor-st · s" cl · ="b · e {{ 'ok' if tor_st · s.running else 'err' }}">{{ 'Running' if tor_st · s.running else 'Stopped' }}</sp · 
+            <button onclick="torOn()">St · </button>
+            <button onclick="torOff()">Stop</button>
+          </div>
+        </div>
+        <div cl · ="section" style="border-bottom:none; flex:1; displ · flex; flex-direction:column;">
+          <h3>Sessions</h3>
+          <div cl · ="row" style="m · in-bottom:8px;">
+            <button cl · ="btn- · ent" onclick="newSession()">New</button>
+            <button onclick="ren · Session()">Ren · </button>
+          </div>
+          <div cl · ="sessions" id="sessions">
+            {% for s in sessions %}
+              <div cl · ="session-item {{ ' · ive' if s.id == current_sid else '' }}" onclick="lo · ession('{{ s.id }}')">
+                <div style="displ · flex; justify-content:sp · -between;  · gn-items:center; g · 8px;">
+                  <div>
+                    <div style="font-weight:600; font-size:14px;">{{ s.n ·  }}</div>
+                    <div style="color:v · --muted); font-size:12px;">{{ s.id }}</div>
+                  </div>
+                  <button cl · ="btn-d · er" onclick="event.stopProp · tion(); deleteSession('{{ s.id }}')">Delete</button>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </ · de>
+      <m ·  cl · ="content">
+        <div cl · ="toolb · >
+          <div>Session: <sp · cl · ="b · e">{{ current_sid }}</sp · </div>
+          <div cl · ="spin-wr · >
+            <div id="spinner" cl · ="spinner" title="Working..."></div>
+            <sp · id="spinner-l · l" cl · ="b · e">Idle</sp · 
+            <l · l style="displ · flex;  · gn-items:center; g · 6px; m · in-left:10px; font-size:12px; color:v · --muted);">
+              <input type="checkbox" id="stre · toggle" /> Stre · ng
+            </l · l>
+            <button onclick="exportSession()">Export M · down</button>
+          </div>
+        </div>
+        <div cl · ="ch ·  id="ch · >
+          {% for m in mess · s %}
+            <div cl · ="msg">
+              <div cl · ="role">{{ m.role }}{% if m.tool_n ·  %} Â· {{ m.tool_n ·  }}{% endif %}</div>
+              {% if m.role == 'tool' %}
+                <det · s cl · ="tool">
+                  <summ · >{{ m.tool_n ·  or 'tool' }} output</summ · >
+                  <div>{{ m.content }}</div>
+                </det · s>
+              {% else %}
+                <div cl · ="bubble">{{ m.content }}</div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+        <div cl · ="inputb · >
+          <input id="prompt" type="text" pl · holder="Type your mess · ..." onkeydown="if(event.key==='Enter'){send()}" />
+          <button cl · ="btn- · ent" onclick="send()">Send</button>
+        </div>
+      </m · >
+    </div>
+
+    <script>
+       · nc function refreshMess · s() {
+        const r =  · it fetch('/ · /mess · s');
+        const j =  · it r.json();
+        if (j.st · s !== 'ok') return;
+        const ch · = document.getElementById('ch · );
+        ch · innerHTML = '';
+        for (const m of j.mess · s) {
+          const d = document.cre · Element('div');
+          d.cl · N ·  = 'msg';
+          const role = document.cre · Element('div');
+          role.cl · N ·  = 'role';
+          role.textContent = m.role + (m.tool_n ·  ? ' Â· ' + m.tool_n ·  : '');
+          d. · endChild(role);
+          if (m.role === 'tool') {
+            const det = document.cre · Element('det · s');
+            det.cl · N ·  = 'tool';
+            const sum = document.cre · Element('summ · ');
+            sum.textContent = (m.tool_n ·  || 'tool') + ' output';
+            const dv = document.cre · Element('div');
+            dv.textContent = m.content || '';
+            det. · endChild(sum); det. · endChild(dv); d. · endChild(det);
+          } else {
+            const bubble = document.cre · Element('div');
+            bubble.cl · N ·  = 'bubble';
+            bubble.textContent = m.content || '';
+            d. · endChild(bubble);
+          }
+          ch ·  · endChild(d);
+        }
+        ch · scrollTop = ch · scrollHeight;
+      }
+
+       · nc function refreshSessions() {
+        const r =  · it fetch('/ · /sessions');
+        const j =  · it r.json();
+        if (j.st · s !== 'ok') return;
+        const cont = document.getElementById('sessions');
+        cont.innerHTML = '';
+        for (const s of j.sessions) {
+          const d = document.cre · Element('div');
+          d.cl · N ·  = 'session-item' + (s.id === j.current ? '  · ive' : '');
+          d.onclick = () => lo · ession(s.id);
+          d.innerHTML = `<div style="displ · flex; justify-content:sp · -between;  · gn-items:center; g · 8px;">
+                           <div><div style="font-weight:600; font-size:14px;">${s.n · }</div>
+                                <div style="color:v · --muted); font-size:12px;">${s.id}</div></div>
+                           <button cl · ="btn-d · er" onclick="event.stopProp · tion(); deleteSession('${s.id}')">Delete</button>
+                         </div>`;
+          cont. · endChild(d);
+        }
+      }
+
+      let STRE · = true;
+       · nc function send() {
+        const el = document.getElementById('prompt');
+        const text = el.v · e.trim();
+        if (!text) return;
+        el.v · e = '';
+        const ch · = document.getElementById('ch · );
+        const mine = document.cre · Element('div'); mine.cl · N · ='msg';
+        mine.innerHTML = `<div cl · ="role">user</div><div cl · ="bubble"></div>`;
+        mine.querySelector('.bubble').textContent = text;
+        ch ·  · endChild(mine); ch · scrollTop = ch · scrollHeight;
+        // St ·  spinner + st ·  polling
+        st · Spinner();
+        if (STRE · && window.EventSource) {
+          const ev = new EventSource(`/ · / · _stre · q=${encodeURIComponent(text)}`);
+          let  ·  = '';
+          ev.onmess ·  = (e) => {
+            try {
+              const d ·  = JSON.p · e(e.d ·  || '{}');
+              if (d · .delt · {
+                 ·  += d · .delta;
+                let l ·  = ch · querySelector('.msg.stre ·  · ist · ');
+                if (!l · ) {
+                  l ·  = document.cre · Element('div');
+                  l · .cl · N ·  = 'msg stre ·  · ist · ';
+                  l · .innerHTML = `<div cl · =\"role\"> · ist · </div><div cl · =\"bubble\"></div>`;
+                  ch ·  · endChild(l · );
+                }
+                l · .querySelector('.bubble').textContent =  · ;
+                ch · scrollTop = ch · scrollHeight;
+              }
+              if (d · .done) {
+                ev.close();
+                refreshMess · s();
+                refreshSessions();
+                stopSpinner();
+              }
+              if (d · .error) {
+                ev.close();
+                stopSpinner();
+                 · rt('Stre · error: ' + d · .error);
+              }
+            } c · h (err) { /* ignore */ }
+          };
+          ev.onerror = () => { ev.close(); stopSpinner(); };
+        } else {
+          const r =  · it fetch('/ · / · ', {method:'POST', he · rs:{'Content-Type':' · lic · on/json'}, body: JSON.stringify({text})});
+          const j =  · it r.json();
+          if (j.st · s !== 'ok') {  · rt(j.error || 'Error'); return; }
+           · it refreshMess · s();
+           · it refreshSessions();
+          stopSpinner();
+        }
+      }
+
+       · nc function newSession() {
+        const n ·  = prompt('New session n ·  (option · :') || undefined;
+         · it fetch('/ · /sessions/new', {method:'POST', he · rs:{'Content-Type':' · lic · on/json'}, body: JSON.stringify({n · })});
+         · it refreshSessions();
+         · it refreshMess · s();
+      }
+
+       · nc function lo · ession(id) {
+         · it fetch('/ · /sessions/lo · , {method:'POST', he · rs:{'Content-Type':' · lic · on/json'}, body: JSON.stringify({id})});
+         · it refreshSessions();
+         · it refreshMess · s();
+      }
+
+       · nc function ren · Session() {
+        const n ·  = prompt('New n ·  for current session:');
+        if (!n · ) return;
+         · it fetch('/ · /sessions/ren · ', {method:'POST', he · rs:{'Content-Type':' · lic · on/json'}, body: JSON.stringify({n · })});
+         · it refreshSessions();
+      }
+
+       · nc function deleteSession(id) {
+        if (!confirm('Delete this session?')) return;
+         · it fetch('/ · /sessions/delete', {method:'POST', he · rs:{'Content-Type':' · lic · on/json'}, body: JSON.stringify({id})});
+         · it refreshSessions();
+         · it refreshMess · s();
+      }
+
+       · nc function exportSession() {
+        const r =  · it fetch('/ · /sessions');
+        const j =  · it r.json();
+        const current = j.current;
+        const r2 =  · it fetch(`/ · /sessions/export/${current}`);
+        const j2 =  · it r2.json();
+        if (j2.st · s !== 'ok') {  · rt(j2.error || 'Export f · ed'); return; }
+        const blob = new Blob([j2.m · down], {type:'text/m · down'});
+        const url = URL.cre · ObjectURL(blob);
+        const  ·  document.cre · Element(' · ;
+         · ref = url;  · ownlo · = `session-${current}.md`;  · lick();
+        URL.revokeObjectURL(url);
+      }
+
+       · nc function torOn() {
+         · it fetch('/ · /tor/on', {method:'POST'});
+        const s =  · it ( · it fetch('/ · /tor/st · s')).json();
+        const b = document.getElementById('tor-st · s');
+        b.textContent = s.running ? 'Running' : 'Stopped';
+        b.cl · N ·  = 'b · e ' + (s.running ? 'ok' : 'err');
+      }
+       · nc function torOff() {
+         · it fetch('/ · /tor/off', {method:'POST'});
+        const s =  · it ( · it fetch('/ · /tor/st · s')).json();
+        const b = document.getElementById('tor-st · s');
+        b.textContent = s.running ? 'Running' : 'Stopped';
+        b.cl · N ·  = 'b · e ' + (s.running ? 'ok' : 'err');
+      }
+
+      // Spinner / st ·  polling
+      let st · Timer = null;
+      const toolColors = {
+        'duck_se · h': '#f59e0b',
+        'fetch_url': '#3b82f6',
+        'tor_se · h': '#06b6d4',
+        'tor_fetch': '#22d3ee',
+        'onion_up': '# · bf · 
+        'lo · file': '#10b981',
+        'python_exec': '#f97316'
+      };
+      function setSpinner(tool) {
+        const sp = document.getElementById('spinner');
+        const l · = document.getElementById('spinner-l · l');
+        sp.style.displ · = 'inline-block';
+        const color = tool ? (toolColors[tool] || '#e5e7eb') : '#e5e7eb';
+        sp.style.borderTopColor = color;
+        l · textContent = tool ? `Working: ${tool}` : 'Working...';
+      }
+      function hideSpinner() {
+        const sp = document.getElementById('spinner');
+        const l · = document.getElementById('spinner-l · l');
+        sp.style.displ · = 'none';
+        l · textContent = 'Idle';
+      }
+       · nc function pollSt · Once() {
+        try {
+          const r =  · it fetch('/ · /st · ');
+          const j =  · it r.json();
+          if (j.st · s !== 'ok') return;
+          if (j.busy) setSpinner(j.current_tool || null); else hideSpinner();
+        } c · h (e) {}
+      }
+      function st · Spinner() {
+        if (st · Timer) cle · nterv · st · Timer);
+        setSpinner(null);
+        st · Timer = setInterv · pollSt · Once, 600);
+      }
+      function stopSpinner() {
+        if (st · Timer) { cle · nterv · st · Timer); st · Timer = null; }
+        hideSpinner();
+      }
+       · nc function lo · t · () {
+        try {
+          const r =  · it fetch('/ · /st · ');
+          const j =  · it r.json();
+          if (j.st · s !== 'ok') return;
+          STRE · = !!j.stre · 
+          const cb = document.getElementById('stre · toggle');
+          if (cb) { cb.checked = STRE ·  cb.onch · e =  · nc () => {
+            STRE · = cb.checked;  · it fetch('/ · /prefs', {method:'POST', he · rs:{'Content-Type':' · lic · on/json'}, body: JSON.stringify({stre ·  STRE · )});
+          }; }
+        } c · h (e) {}
+      }
+      // Initi · ze
+      lo · t · ();
+    </script>
+  </body>
+  </html>
+

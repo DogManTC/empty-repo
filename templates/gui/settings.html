@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Settings — Omni Agent</title>
+    <style>
+      body { margin:0; background:#0f172a; color:#e5e7eb; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; }
+      .wrap { max-width: 900px; margin: 24px auto; padding: 0 16px; }
+      h1 { font-size: 20px; margin: 0 0 16px; }
+      .grid { display:grid; grid-template-columns: 240px 1fr; gap:8px 12px; }
+      .card { background:#111827; border:1px solid #1f2937; border-radius:10px; padding:14px; }
+      input { background:#0b1220; color:#e5e7eb; border:1px solid #24324a; border-radius:8px; padding:8px; width:100%; }
+      label { color:#9ca3af; font-size:12px; }
+      .row { display:flex; gap:10px; align-items:center; }
+      button { background:#111827; color:#e5e7eb; border:1px solid #374151; border-radius:8px; padding:8px 10px; cursor:pointer; }
+      button:hover { border-color:#4b5563; }
+      .btn-accent { border-color:#22d3ee; color:#22d3ee; }
+      a { color:#22d3ee; text-decoration:none; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="row" style="justify-content:space-between; margin-bottom:12px;">
+        <h1>Omni Agent — Settings</h1>
+        <div class="row">
+          <a href="/" style="margin-right:8px;">Back</a>
+          <button class="btn-accent" onclick="doReload()">Reload</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="grid">
+          <label for="OMNI_MODEL">OMNI_MODEL</label>
+          <input id="OMNI_MODEL" value="{{ settings['OMNI_MODEL'] }}" />
+
+          <label for="OMNI_UA">OMNI_UA</label>
+          <input id="OMNI_UA" value="{{ settings['OMNI_UA'] }}" />
+
+          <label for="OMNI_TIMEOUT">OMNI_TIMEOUT</label>
+          <input id="OMNI_TIMEOUT" value="{{ settings['OMNI_TIMEOUT'] }}" />
+
+          <label for="OMNI_VERIFY_SSL">OMNI_VERIFY_SSL</label>
+          <input id="OMNI_VERIFY_SSL" value="{{ settings['OMNI_VERIFY_SSL'] }}" />
+
+          <label for="OMNI_ENABLE_TOR">OMNI_ENABLE_TOR</label>
+          <input id="OMNI_ENABLE_TOR" value="{{ settings['OMNI_ENABLE_TOR'] }}" />
+
+          <label for="TOR_BIN">TOR_BIN</label>
+          <input id="TOR_BIN" value="{{ settings['TOR_BIN'] }}" />
+
+          <label for="OMNI_TOR_LOG_LEVEL">OMNI_TOR_LOG_LEVEL</label>
+          <input id="OMNI_TOR_LOG_LEVEL" value="{{ settings['OMNI_TOR_LOG_LEVEL'] }}" />
+
+          <label for="OMNI_TOR_SOCKS_PORT">OMNI_TOR_SOCKS_PORT</label>
+          <input id="OMNI_TOR_SOCKS_PORT" value="{{ settings['OMNI_TOR_SOCKS_PORT'] }}" />
+
+          <label for="OMNI_TOR_CONTROL_PORT">OMNI_TOR_CONTROL_PORT</label>
+          <input id="OMNI_TOR_CONTROL_PORT" value="{{ settings['OMNI_TOR_CONTROL_PORT'] }}" />
+
+          <label for="OMNI_NUM_CTX">OMNI_NUM_CTX</label>
+          <input id="OMNI_NUM_CTX" value="{{ settings['OMNI_NUM_CTX'] }}" />
+
+          <label for="OMNI_NUM_PREDICT">OMNI_NUM_PREDICT</label>
+          <input id="OMNI_NUM_PREDICT" value="{{ settings['OMNI_NUM_PREDICT'] }}" />
+
+          <label for="OMNI_CTX_MARGIN">OMNI_CTX_MARGIN</label>
+          <input id="OMNI_CTX_MARGIN" value="{{ settings['OMNI_CTX_MARGIN'] }}" />
+
+          <label for="OMNI_MAX_TOOL_CTX_CHARS">OMNI_MAX_TOOL_CTX_CHARS</label>
+          <input id="OMNI_MAX_TOOL_CTX_CHARS" value="{{ settings['OMNI_MAX_TOOL_CTX_CHARS'] }}" />
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <button onclick="saveSettings()">Save</button>
+          <button class="btn-accent" onclick="doReload()">Save & Reload</button>
+        </div>
+      </div>
+
+      <div id="msg" style="margin-top:10px; color:#9ca3af;"></div>
+    </div>
+
+    <script>
+      function gather() {
+        const ids = [
+          'OMNI_MODEL','OMNI_UA','OMNI_TIMEOUT','OMNI_VERIFY_SSL','OMNI_ENABLE_TOR','TOR_BIN','OMNI_TOR_LOG_LEVEL','OMNI_TOR_SOCKS_PORT','OMNI_TOR_CONTROL_PORT','OMNI_NUM_CTX','OMNI_NUM_PREDICT','OMNI_CTX_MARGIN','OMNI_MAX_TOOL_CTX_CHARS'
+        ];
+        const out = {};
+        for (const id of ids) { const el = document.getElementById(id); if (el) out[id] = el.value; }
+        return out;
+      }
+      async function saveSettings() {
+        const payload = gather();
+        const r = await fetch('/api/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+        const j = await r.json();
+        document.getElementById('msg').textContent = j.status === 'ok' ? 'Saved.' : ('Error: ' + (j.error||''));
+      }
+      async function doReload() {
+        await saveSettings();
+        await fetch('/api/reload', {method:'POST'});
+        // give the server a moment then navigate
+        setTimeout(()=>{ location.href = '/'; }, 1500);
+      }
+    </script>
+  </body>
+  </html>
+

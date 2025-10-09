@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Omni Agent - Web UI</title>
+    <style>
+      :root { --bg:#0f172a; --panel:#111827; --text:#e5e7eb; --muted:#9ca3af; --accent:#22d3ee; --danger:#ef4444; }
+      body { margin:0; background:var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; }
+      .layout { display:flex; height:100vh; }
+      .sidebar { width:320px; background:var(--panel); border-right:1px solid #1f2937; display:flex; flex-direction:column; }
+      .brand { padding:14px 16px; border-bottom:1px solid #1f2937; font-weight:600; }
+      .brand small { color:var(--muted); font-weight:400; }
+      .section { padding:10px 12px; border-bottom:1px solid #1f2937; }
+      .section h3 { margin:6px 0 8px; font-size:14px; color:var(--muted); font-weight:600; }
+      .sessions { overflow-y:auto; flex:1; }
+      .session-item { padding:8px 10px; cursor:pointer; border-radius:6px; margin:4px 0; }
+      .session-item.active { background:#0b1220; border:1px solid #24324a; }
+      .row { display:flex; gap:8px; align-items:center; }
+      button { background:#111827; color:var(--text); border:1px solid #374151; border-radius:8px; padding:8px 10px; cursor:pointer; }
+      button:hover { border-color:#4b5563; }
+      .btn-accent { border-color:var(--accent); color:var(--accent); }
+      .btn-danger { border-color:var(--danger); color:var(--danger); }
+      .content { flex:1; display:flex; flex-direction:column; }
+      .toolbar { padding:10px 14px; border-bottom:1px solid #1f2937; display:flex; justify-content:space-between; align-items:center; }
+      .badge { padding:2px 8px; border-radius:999px; border:1px solid #334155; color:var(--muted); font-size:12px; }
+      .badge.ok { color:#10b981; border-color:#064e3b; }
+      .badge.err { color:#f97316; border-color:#7c2d12; }
+      .chat { padding:14px; overflow-y:auto; flex:1; }
+      .msg { margin:12px 0; }
+      .role { font-size:12px; color:var(--muted); margin-bottom:4px; }
+      .bubble { background:#0b1220; border:1px solid #24324a; border-radius:10px; padding:10px 12px; white-space:pre-wrap; }
+      details.tool { border:1px solid #24324a; border-radius:10px; background:#0b1220; }
+      details.tool > summary { cursor:pointer; padding:8px 10px; color:var(--muted); }
+      details.tool > div { padding:8px 10px; }
+      .inputbar { display:flex; gap:8px; padding:12px; border-top:1px solid #1f2937; }
+      .inputbar input { flex:1; background:#0b1220; border:1px solid #24324a; border-radius:10px; color:var(--text); padding:10px 12px; }
+      .spinner { width:18px; height:18px; border:3px solid rgba(229,231,235,0.15); border-top-color:#e5e7eb; border-radius:50%; animation:spin 1s linear infinite; display:none; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .spin-wrap { display:flex; align-items:center; gap:10px; }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="brand">Omni Agent<br/><small>{{ model }}</small></div>
+        <div class="section">
+          <h3>Tor</h3>
+          <div class="row">
+            <span id="tor-status" class="badge {{ 'ok' if tor_status.running else 'err' }}">{{ 'Running' if tor_status.running else 'Stopped' }}</span>
+            <button onclick="torOn()">Start</button>
+            <button onclick="torOff()">Stop</button>
+          </div>
+        </div>
+        <div class="section">
+          <h3>Home Dir</h3>
+          <div class="row" style="gap:6px;">
+            <input id="homePath" placeholder="C:\\path\\to\\folder" style="flex:1; background:#0b1220; border:1px solid #24324a; border-radius:8px; color:var(--text); padding:6px 8px;" />
+            <button onclick="saveHome()">Save</button>
+          </div>
+        </div>
+
+        <div class="section" style="border-bottom:none; flex:1; display:flex; flex-direction:column;">
+          <h3>Sessions</h3>
+          <div class="row" style="margin-bottom:8px;">
+            <button class="btn-accent" onclick="newSession()">New</button>
+            <button onclick="renameSession()">Rename</button>
+          </div>
+          <div class="sessions" id="sessions">
+            {% for s in sessions %}
+              <div class="session-item {{ 'active' if s.id == current_sid else '' }}" onclick="loadSession('{{ s.id }}')">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                  <div>
+                    <div style="font-weight:600; font-size:14px;">{{ s.name }}</div>
+                    <div style="color:var(--muted); font-size:12px;">{{ s.id }}</div>
+                  </div>
+                  <button class="btn-danger" onclick="event.stopPropagation(); deleteSession('{{ s.id }}')">Delete</button>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="section" style="border-bottom:none;">
+          <h3>Search Files</h3>
+          <div class="row" style="margin-bottom:6px;">
+            <input id="sf-name" placeholder="name contains" style="flex:1; background:#0b1220; border:1px solid #24324a; border-radius:8px; color:var(--text); padding:6px 8px;" />
+          </div>
+          <div class="row" style="margin-bottom:6px;">
+            <input id="sf-ext" placeholder="ext (e.g., .md)" style="flex:1; background:#0b1220; border:1px solid #24324a; border-radius:8px; color:var(--text); padding:6px 8px;" />
+            <input id="sf-contains" placeholder="content contains (text)" style="flex:1; background:#0b1220; border:1px solid #24324a; border-radius:8px; color:var(--text); padding:6px 8px;" />
+          </div>
+          <div class="row" style="margin-bottom:8px;">
+            <button onclick="doSearchFiles()" class="btn-accent">Search</button>
+          </div>
+          <div id="sf-results" style="max-height:160px; overflow:auto; border:1px solid #1f2937; border-radius:8px; padding:6px;"></div>
+          <div id="preview" style="margin-top:8px; border:1px solid #1f2937; border-radius:8px; padding:8px; display:none;">
+            <div style="font-size:12px; color:var(--muted); margin-bottom:6px;">File Preview</div>
+            <div id="preview-title" style="font-weight:600; margin-bottom:6px;"></div>
+            <div id="preview-content" style="white-space:pre-wrap; max-height:180px; overflow:auto;"></div>
+          </div>
+        </div>
+      </aside>
+      <main class="content">
+        <div class="toolbar">
+          <div>Session: <span class="badge">{{ current_sid }}</span></div>
+          <div class="spin-wrap">
+            <div id="spinner" class="spinner" title="Working..."></div>
+            <span id="spinner-label" class="badge">Idle</span>
+            <label style="display:flex; align-items:center; gap:6px; margin-left:10px; font-size:12px; color:var(--muted);">
+              <input type="checkbox" id="stream-toggle" /> Streaming
+            </label>
+            <a href="/settings" style="color:#22d3ee; margin-left:6px;">Settings</a>
+            <button onclick="exportSession()">Export Markdown</button>
+          </div>
+        </div>
+        <div class="chat" id="chat">
+          {% for m in messages %}
+            <div class="msg">
+              <div class="role">{{ m.role }}{% if m.tool_name %} - {{ m.tool_name }}{% endif %}</div>
+              {% if m.role == 'tool' %}
+                <details class="tool">
+                  <summary>{{ m.tool_name or 'tool' }} output</summary>
+                  <div><pre style="white-space:pre-wrap; margin:0 0 8px 0;">Call: {{ m.tool_args|tojson }}</pre><div>{{ m.content }}</div></div>
+                </details>
+              {% else %}
+                <div class="bubble">{{ m.content }}</div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+        <div class="inputbar">
+          <input id="prompt" type="text" placeholder="Type your message..." onkeydown="if(event.key==='Enter'){send()}" />
+          <button class="btn-accent" onclick="send()">Send</button>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      async function refreshMessages() {
+        const r = await fetch('/api/messages');
+        const j = await r.json();
+        if (j.status !== 'ok') return;
+        const chat = document.getElementById('chat');
+        chat.innerHTML = '';
+        for (const m of j.messages) {
+          const d = document.createElement('div');
+          d.className = 'msg';
+          const role = document.createElement('div');
+          role.className = 'role';
+          role.textContent = m.role + (m.tool_name ? ' - ' + m.tool_name : '');
+          d.appendChild(role);
+          if (m.role === 'tool') {
+            const det = document.createElement('details');
+            det.className = 'tool';
+            const sum = document.createElement('summary');
+            sum.textContent = (m.tool_name || 'tool') + ' output';
+            const dv = document.createElement('div');
+            // Include call args if present
+            if (m.tool_args) {
+              const pre = document.createElement('pre');
+              pre.style.whiteSpace = 'pre-wrap';
+              pre.style.margin = '0 0 8px 0';
+              pre.textContent = 'Call: ' + JSON.stringify(m.tool_args, null, 2);
+              dv.appendChild(pre);
+            }
+            const body = document.createElement('div');
+            body.textContent = m.content || '';
+            dv.appendChild(body);
+            det.appendChild(sum); det.appendChild(dv); d.appendChild(det);
+          } else {
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.textContent = m.content || '';
+            d.appendChild(bubble);
+          }
+          chat.appendChild(d);
+        }
+        chat.scrollTop = chat.scrollHeight;
+      }
+
+      async function refreshSessions() {
+        const r = await fetch('/api/sessions');
+        const j = await r.json();
+        if (j.status !== 'ok') return;
+        const cont = document.getElementById('sessions');
+        cont.innerHTML = '';
+        for (const s of j.sessions) {
+          const d = document.createElement('div');
+          d.className = 'session-item' + (s.id === j.current ? ' active' : '');
+          d.onclick = () => loadSession(s.id);
+          d.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                           <div><div style="font-weight:600; font-size:14px;">${s.name}</div>
+                                <div style="color:var(--muted); font-size:12px;">${s.id}</div></div>
+                           <button class=\"btn-danger\" onclick=\"event.stopPropagation(); deleteSession('${s.id}')\">Delete</button>
+                         </div>`;
+          cont.appendChild(d);
+        }
+      }
+
+      let STREAM = true;
+      async function saveHome() {
+        const v = (document.getElementById('homePath').value || '').trim();
+        if (!v) { alert('Enter a folder path.'); return; }
+        await fetch('/api/home', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({path: v})});
+      }
+      async function loadHome() {
+        try {
+          const r = await fetch('/api/home');
+          const j = await r.json();
+          if (j.status === 'ok' && j.home) {
+            document.getElementById('homePath').value = j.home;
+          }
+        } catch (e) {}
+      }
+      async function doSearchFiles() {
+        const name = document.getElementById('sf-name').value || undefined;
+        const ext = document.getElementById('sf-ext').value || undefined;
+        const contains = document.getElementById('sf-contains').value || undefined;
+        const r = await fetch('/api/search_files', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name, ext, contains})});
+        const j = await r.json();
+        const box = document.getElementById('sf-results');
+        box.innerHTML = '';
+        if (j.status !== 'ok') { box.textContent = j.error || 'Search error'; return; }
+        if (!j.results || !j.results.length) { box.textContent = 'No results.'; return; }
+        for (const it of j.results) {
+          const d = document.createElement('div');
+          d.style.padding = '4px 6px';
+          d.style.display = 'flex';
+          d.style.alignItems = 'center';
+          d.style.gap = '6px';
+          const span = document.createElement('span');
+          span.textContent = it.path;
+          span.style.flex = '1';
+          const btnCopy = document.createElement('button');
+          btnCopy.textContent = 'Copy';
+          btnCopy.onclick = async (e) => { e.stopPropagation(); try { await navigator.clipboard.writeText(it.path); } catch(e){} };
+          const btnOpen = document.createElement('button');
+          btnOpen.textContent = 'Open';
+          btnOpen.className = 'btn-accent';
+          btnOpen.onclick = async (e) => { e.stopPropagation(); await openPreview(it.path); };
+          d.appendChild(span); d.appendChild(btnCopy); d.appendChild(btnOpen);
+          box.appendChild(d);
+        }
+      }
+      async function openPreview(path) {
+        const r = await fetch('/api/open_file', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({path})});
+        const j = await r.json();
+        const pv = document.getElementById('preview');
+        const pt = document.getElementById('preview-title');
+        const pc = document.getElementById('preview-content');
+        if (j.status !== 'ok') { pv.style.display='block'; pt.textContent = 'Error'; pc.textContent = j.error || 'Unable to open file.'; return; }
+        pv.style.display = 'block';
+        pt.textContent = `${j.title || ''} (${j.kind || ''})`;
+        pc.textContent = j.content || '';
+      }
+      async function send() {
+        const el = document.getElementById('prompt');
+        const text = el.value.trim();
+        if (!text) return;
+        el.value = '';
+        const chat = document.getElementById('chat');
+        const mine = document.createElement('div'); mine.className='msg';
+        mine.innerHTML = `<div class=\"role\">user</div><div class=\"bubble\"></div>`;
+        mine.querySelector('.bubble').textContent = text;
+        chat.appendChild(mine); chat.scrollTop = chat.scrollHeight;
+        startSpinner();
+        if (STREAM && window.EventSource) {
+          const ev = new EventSource(`/api/ask_stream?q=${encodeURIComponent(text)}`);
+          let acc = '';
+          ev.onmessage = (e) => {
+            try {
+              const data = JSON.parse(e.data || '{}');
+              if (data.delta) {
+                acc += data.delta;
+                let last = chat.querySelector('.msg.stream-assistant');
+                if (!last) {
+                  last = document.createElement('div');
+                  last.className = 'msg stream-assistant';
+                  last.innerHTML = `<div class=\"role\">assistant</div><div class=\"bubble\"></div>`;
+                  chat.appendChild(last);
+                }
+                last.querySelector('.bubble').textContent = acc;
+                chat.scrollTop = chat.scrollHeight;
+              }
+              if (data.done) {
+                ev.close();
+                refreshMessages();
+                refreshSessions();
+                stopSpinner();
+              }
+              if (data.error) {
+                ev.close();
+                stopSpinner();
+                alert('Stream error: ' + data.error);
+              }
+            } catch (err) { }
+          };
+          ev.onerror = () => { ev.close(); stopSpinner(); };
+        } else {
+          const r = await fetch('/api/ask', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text})});
+          const j = await r.json();
+          if (j.status !== 'ok') { alert(j.error || 'Error'); return; }
+          await refreshMessages();
+          await refreshSessions();
+          stopSpinner();
+        }
+      }
+
+      async function newSession() {
+        const name = prompt('New session name (optional):') || undefined;
+        await fetch('/api/sessions/new', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name})});
+        await refreshSessions();
+        await refreshMessages();
+      }
+
+      async function loadSession(id) {
+        await fetch('/api/sessions/load', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id})});
+        await refreshSessions();
+        await refreshMessages();
+      }
+
+      async function renameSession() {
+        const name = prompt('New name for current session:');
+        if (!name) return;
+        await fetch('/api/sessions/rename', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name})});
+        await refreshSessions();
+      }
+
+      async function deleteSession(id) {
+        if (!confirm('Delete this session?')) return;
+        await fetch('/api/sessions/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id})});
+        await refreshSessions();
+        await refreshMessages();
+      }
+
+      async function exportSession() {
+        const r = await fetch('/api/sessions');
+        const j = await r.json();
+        const current = j.current;
+        const r2 = await fetch(`/api/sessions/export/${current}`);
+        const j2 = await r2.json();
+        if (j2.status !== 'ok') { alert(j2.error || 'Export failed'); return; }
+        const blob = new Blob([j2.markdown], {type:'text/markdown'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `session-${current}.md`; a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      async function torOn() {
+        await fetch('/api/tor/on', {method:'POST'});
+        const s = await (await fetch('/api/tor/status')).json();
+        const b = document.getElementById('tor-status');
+        b.textContent = s.running ? 'Running' : 'Stopped';
+        b.className = 'badge ' + (s.running ? 'ok' : 'err');
+      }
+      async function torOff() {
+        await fetch('/api/tor/off', {method:'POST'});
+        const s = await (await fetch('/api/tor/status')).json();
+        const b = document.getElementById('tor-status');
+        b.textContent = s.running ? 'Running' : 'Stopped';
+        b.className = 'badge ' + (s.running ? 'ok' : 'err');
+      }
+
+      // Spinner / state polling
+      let stateTimer = null;
+      const toolColors = {
+        'duck_search': '#f59e0b',
+        'fetch_url': '#3b82f6',
+        'tor_search': '#06b6d4',
+        'tor_fetch': '#22d3ee',
+        'onion_up': '#a78bfa',
+        'load_file': '#10b981',
+        'python_exec': '#f97316'
+      };
+      function setSpinner(tool) {
+        const sp = document.getElementById('spinner');
+        const lab = document.getElementById('spinner-label');
+        sp.style.display = 'inline-block';
+        const color = tool ? (toolColors[tool] || '#e5e7eb') : '#e5e7eb';
+        sp.style.borderTopColor = color;
+        lab.textContent = tool ? ('Working: ' + tool) : 'Working...';
+      }
+      function hideSpinner() {
+        const sp = document.getElementById('spinner');
+        const lab = document.getElementById('spinner-label');
+        sp.style.display = 'none';
+        lab.textContent = 'Idle';
+      }
+      async function pollStateOnce() {
+        try {
+          const r = await fetch('/api/state');
+          const j = await r.json();
+          if (j.status !== 'ok') return;
+          if (j.busy) setSpinner(j.current_tool || null); else hideSpinner();
+        } catch (e) {}
+      }
+      function startSpinner() {
+        if (stateTimer) clearInterval(stateTimer);
+        setSpinner(null);
+        stateTimer = setInterval(pollStateOnce, 600);
+      }
+      function stopSpinner() {
+        if (stateTimer) { clearInterval(stateTimer); stateTimer = null; }
+        hideSpinner();
+      }
+      async function loadState() {
+        try {
+          const r = await fetch('/api/state');
+          const j = await r.json();
+          if (j.status !== 'ok') return;
+          STREAM = !!j.stream;
+          const cb = document.getElementById('stream-toggle');
+          if (cb) { cb.checked = STREAM; cb.onchange = async () => {
+            STREAM = cb.checked; await fetch('/api/prefs', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({stream: STREAM})});
+          }; }
+        } catch (e) {}
+      }
+      loadState();
+      loadHome();
+    </script>
+  </body>
+  </html>
+

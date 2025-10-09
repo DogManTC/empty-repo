@@ -1,0 +1,15 @@
+# Omni Agent runtime dependencies
+requests>=2.31
+beautifulsoup4>=4.12
+lxml>=5.2
+trafilatura>=1.9
+# DuckDuckGo search client used in code
+ddgs>=1.8.3
+# PDF text extraction
+pdfminer.six>=20231228
+# LLM client
+ollama>=0.3.0
+# Tor client + SOCKS support
+stem>=1.8.2
+PySocks>=1.7.1
+Flask>=2.3

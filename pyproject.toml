@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "omni-agent"
+version = "0.1.0"
+description = "Supercharged modular agent with integrated headless Tor client, web tools, and conversation management"
+authors = [{ name = "Omni Agent" }]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "requests>=2.31",
+  "beautifulsoup4>=4.12",
+  "lxml>=5.2",
+  "trafilatura>=1.9",
+  "duckduckgo_search>=6.2.7",
+  "pdfminer.six>=20231228",
+  "ollama>=0.3.0",
+  "stem>=1.8.2",
+  "pysocks>=1.7.1",
+]
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["omni_agent*"]
